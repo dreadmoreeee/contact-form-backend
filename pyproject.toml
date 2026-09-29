@@ -1,0 +1,38 @@
+[build-system]
+requires = ["setuptools>=61"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "contact-form-backend"
+version = "0.1.0"
+description = "Self-hosted contact form endpoint: TOML-configured forms, SMTP/webhook delivery, CAPTCHA-free spam protection via form-spam-guard."
+readme = "README.md"
+license = { file = "LICENSE" }
+requires-python = ">=3.10"
+authors = [{ name = "Marvin Palencia" }]
+keywords = ["contact form", "form backend", "smtp", "spam", "honeypot", "fastapi"]
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "License :: OSI Approved :: MIT License",
+    "Framework :: FastAPI",
+    "Topic :: Internet :: WWW/HTTP",
+]
+dependencies = [
+    "fastapi>=0.100",
+    "uvicorn>=0.23",
+    "python-multipart>=0.0.9",
+    "tomli>=1.1; python_version < '3.11'",
+    "form-spam-guard @ git+https://github.com/dreadmoreeee/form-spam-guard",
+]
+
+[project.optional-dependencies]
+test = ["pytest>=7", "httpx"]
+
+[project.scripts]
+contact-form-backend = "contact_form_backend.cli:main"
+
+[tool.setuptools]
+packages = ["contact_form_backend"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

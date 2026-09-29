@@ -1,0 +1,95 @@
+<!--
+  Drop-in contact form for contact-form-backend.
+
+  Replace https://forms.example.ca with the address of your backend and keep
+  the field names in sync with the [[forms.contact.fields]] in your config.
+
+  With JavaScript: the script fetches a signed token from /token, then sends
+  the form with fetch() and shows the answer in place.
+  Without JavaScript: the browser posts the form normally and the backend
+  answers with a 303 redirect to success_url (or error_url). No token is sent
+  in that case, so the form needs token = "lenient" in the config, or a
+  server-rendered token (see the README, "Without JavaScript").
+
+  If your Content-Security-Policy forbids inline <style>/<script>, move both
+  into your own CSS and JS files; nothing here depends on being inline.
+-->
+<form id="contact-form" method="post"
+      action="https://forms.example.ca/f/contact"
+      data-token-url="https://forms.example.ca/token?form=contact">
+  <p><label>Name<br><input name="name" required maxlength="100" autocomplete="name"></label></p>
+  <p><label>Email<br><input name="email" type="email" required maxlength="254" autocomplete="email"></label></p>
+  <p><label>Phone (optional)<br><input name="phone" type="tel" maxlength="40" autocomplete="tel"></label></p>
+  <p><label>Message<br><textarea name="message" required maxlength="5000" rows="6"></textarea></label></p>
+
+  <!-- Honeypot: people never see or fill this; bots usually do. -->
+  <div class="fsg-hp" aria-hidden="true">
+    <label for="fsg-website">Website</label>
+    <input type="text" id="fsg-website" name="website" value="" tabindex="-1" autocomplete="off">
+  </div>
+  <!-- Filled in by the script below (or by your server, see README). -->
+  <input type="hidden" name="fsg_token" value="">
+
+  <p><button type="submit">Send</button></p>
+  <p class="form-status" role="status" aria-live="polite"></p>
+</form>
+
+<style>
+  .fsg-hp{position:absolute!important;left:-10000px;top:auto;width:1px;height:1px;overflow:hidden}
+</style>
+
+<script>
+(function () {
+  var form = document.getElementById("contact-form");
+  if (!form || !window.fetch || !window.FormData) return; // old browser: plain post
+  var tokenInput = form.querySelector('input[name="fsg_token"]');
+  var status = form.querySelector(".form-status");
+  var button = form.querySelector('button[type="submit"]');
+  var tokenUrl = form.getAttribute("data-token-url");
+
+  // The first token is used as soon as it arrives. Later refreshes (so a tab
+  // left open for hours still has a valid token) swap the new token in only
+  // once it is older than min_age, so a click right after a refresh is not
+  // judged "too fast".
+  function loadToken(first) {
+    return fetch(tokenUrl, { credentials: "omit", cache: "no-store" })
+      .then(function (r) { return r.ok ? r.json() : null; })
+      .then(function (d) {
+        if (!d || !d.token) return;
+        if (first) { tokenInput.value = d.token; return; }
+        setTimeout(function () { tokenInput.value = d.token; }, (d.min_age + 1) * 1000);
+      })
+      .catch(function () { /* offline: the backend decides what to do without a token */ });
+  }
+  loadToken(true);
+  setInterval(function () { loadToken(false); }, 20 * 60 * 1000);
+
+  form.addEventListener("submit", function (event) {
+    event.preventDefault();
+    button.disabled = true;
+    status.textContent = "Sending\u2026";
+    fetch(form.action, {
+      method: "POST",
+      body: new FormData(form),
+      headers: { Accept: "application/json" },
+      credentials: "omit"
+    })
+      .then(function (r) { return r.json(); })
+      .then(function (d) {
+        if (d.ok) {
+          form.reset();
+          status.textContent = d.message;
+          loadToken(false); // tokens are single-use
+        } else if (d.fields) {
+          status.textContent = "Please check: " + Object.keys(d.fields).join(", ") + ".";
+        } else {
+          status.textContent = "Sorry, your message could not be sent. Please try again later.";
+        }
+      })
+      .catch(function () {
+        status.textContent = "Network error, please try again.";
+      })
+      .then(function () { button.disabled = false; });
+  });
+})();
+</script>

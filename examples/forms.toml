@@ -1,0 +1,62 @@
+# Example configuration for contact-form-backend.
+# Secrets and SMTP settings are NOT here: they come from environment variables
+# (see examples/contact-form-backend.env.example).
+
+[server]
+trust_proxy = false        # true only behind your own reverse proxy (nginx, Caddy)
+max_body_bytes = 65536     # larger bodies get HTTP 413
+nonce_db = ""              # e.g. "/var/lib/contact-form-backend/nonces.sqlite3" with several workers
+
+[log]
+jsonl = ""                 # e.g. "/var/log/contact-form-backend/submissions.jsonl" (no message bodies)
+sqlite = ""                # e.g. "/var/lib/contact-form-backend/submissions.sqlite3" (stores messages)
+retention_days = 30        # SQLite rows older than this are deleted
+log_ip = false             # add the client IP to the JSON-lines and SQLite logs
+
+[forms.contact]
+subject = "Website enquiry from {name}"
+# to = ["hello@example.ca"]           # default: CFB_MAIL_TO
+allowed_origins = ["https://example.ca", "https://www.example.ca"]
+success_url = "https://example.ca/contact/thanks/"
+error_url = "https://example.ca/contact/?sent=0"
+thank_you = "Thank you, your message has been sent."
+
+# "required": no valid token, no email (silent drop).
+# "lenient":  a MISSING token is accepted (visitors without JavaScript); a
+#             present token is still checked. See README, "Without JavaScript".
+# "off":      no token layer at all.
+token = "lenient"
+min_age = 3                # seconds between loading the form and sending it
+max_age = 14400            # 4 hours
+
+honeypot = "website"       # name of the hidden decoy field ("" to disable)
+allowed_scripts = ["latin"]              # English and French
+allowed_domains = ["example.ca"]         # links to these are always fine
+max_links = 2
+rate_limit = 5             # messages per IP in a burst...
+rate_refill_minutes = 10   # ...then one more every 10 minutes
+# webhook = "https://hooks.example.ca/contact"   # optional JSON POST
+
+[[forms.contact.fields]]
+name = "name"
+label = "Name"
+required = true
+max_length = 100
+
+[[forms.contact.fields]]
+name = "email"
+label = "Email"
+type = "email"
+required = true
+
+[[forms.contact.fields]]
+name = "phone"
+label = "Phone"
+type = "phone"
+
+[[forms.contact.fields]]
+name = "message"
+label = "Message"
+type = "textarea"
+required = true
+max_length = 5000
